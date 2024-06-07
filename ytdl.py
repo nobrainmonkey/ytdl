@@ -67,8 +67,10 @@ def main():
     sg.theme('DarkBlue')
 
     layout = [
-        [sg.Text("选择包含视频URL的文本文件:", size=(25, 1), font=("Helvetica", 14))],
+        [sg.Text("选择包含视频地址的文本文件:", size=(25, 1), font=("Helvetica", 14))],
         [sg.InputText(size=(50, 1), font=("Helvetica", 14), key='-FILE-'), sg.FileBrowse("浏览", file_types=(("Text Files", "*.txt"),), font=("Helvetica", 14))],
+        [sg.Text("输入单个视频地址:", size=(25, 1), font=("Helvetica", 14))],
+        [sg.InputText(size=(50, 1), font=("Helvetica", 14), key='-URL-')],
         [sg.Text("选择下载路径:", size=(25, 1), font=("Helvetica", 14))],
         [sg.InputText(default_text=os.getcwd(), key="-FOLDER-", size=(50, 1), font=("Helvetica", 14)), sg.FolderBrowse("浏览", font=("Helvetica", 14))],
         [sg.Button("开始下载", size=(12, 1), font=("Helvetica", 14)), sg.Button("退出", size=(12, 1), font=("Helvetica", 14))],
@@ -87,10 +89,14 @@ def main():
         if event == "开始下载":
             input_file = values['-FILE-']
             local_path = values["-FOLDER-"]
-            if not input_file:
-                sg.popup("请选择包含URL的文本文件")
+            single_url = values["-URL-"]
+            if not input_file and not single_url:
+                sg.popup("请选择包含视频链接的文本文件或输入单个视频链接")
                 continue
-            url_list = get_url_list_from_file(input_file)
+            if input_file:
+                url_list = get_url_list_from_file(input_file)
+            else:
+                url_list = [single_url]
             window['-OUTPUT-'].update('')
             threading.Thread(target=download_thread, args=(url_list, local_path), daemon=True).start()
         
