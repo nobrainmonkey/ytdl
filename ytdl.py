@@ -3,10 +3,13 @@ from pytube import YouTube
 import PySimpleGUI as sg
 import threading
 import queue
+import re
 
 # Global variables for window and queue
 window = None
 output_queue = queue.Queue()
+completed_count = 0
+total_count = 0
 
 # Callback functions to update the GUI with the current download status
 def on_start(stream):
@@ -21,8 +24,11 @@ def on_progress(stream, chunk, bytes_remaining):
     window.write_event_value('-PROGRESS-', percent_complete)
 
 def on_complete(stream, file_path):
+    global completed_count
+    completed_count += 1
     stream_title = stream.title
-    output_queue.put(f"{stream_title} 下载完成!\n")
+    output_queue.put(f"{stream_title} 下载完成! ({completed_count}/{total_count})\n")
+    window.write_event_value('-COUNTER-', f"{completed_count}/{total_count}")
 
 # Function to handle individual video download
 def download_from_url(url, local_path="."):
@@ -43,12 +49,17 @@ def download_from_url(url, local_path="."):
 
 # Function to download multiple videos
 def batch_download(url_list, local_path="."):
+    global total_count, completed_count
+    total_count = len(url_list)
+    completed_count = 0
     if not os.path.exists(local_path):
         os.mkdir(local_path)
     for url in url_list:
         window['-PROGRESS-'].update_bar(0)  # Reset progress bar for each download
         download_from_url(url, local_path=local_path)
-    output_queue.put("下载完成")
+    output_queue.put("所有任务执行完成！")
+    sg.popup_ok("所有任务执行完成！",non_blocking=True)
+    window['-OUTPUT-'].update('') # clear console window
 
 # Function to read URL list from a text file
 def get_url_list_from_file(input_file):
@@ -74,6 +85,7 @@ def main():
         [sg.Text("选择下载路径:", size=(25, 1), font=("Helvetica", 14))],
         [sg.InputText(default_text=os.getcwd(), key="-FOLDER-", size=(50, 1), font=("Helvetica", 14)), sg.FolderBrowse("浏览", font=("Helvetica", 14))],
         [sg.Button("开始下载", size=(12, 1), font=("Helvetica", 14)), sg.Button("退出", size=(12, 1), font=("Helvetica", 14))],
+        [sg.Text("完成数量/总任务数量:", size=(25, 1), font=("Helvetica", 14)), sg.Text("0/0", size=(10, 1), font=("Helvetica", 14), key='-COUNTER-')],
         [sg.ProgressBar(max_value=100, orientation='h', size=(60, 20), key='-PROGRESS-', expand_x=True)],
         [sg.Multiline(size=(80, 20), key='-OUTPUT-', autoscroll=True, disabled=True, expand_x=True, expand_y=True, font=("Helvetica", 14))]
     ]
@@ -109,6 +121,11 @@ def main():
         if event == '-PROGRESS-':
             percent_complete = values['-PROGRESS-']
             window['-PROGRESS-'].update_bar(percent_complete)
+
+        # Update the counter
+        if event == '-COUNTER-':
+            counter_value = values['-COUNTER-']
+            window['-COUNTER-'].update(counter_value)
 
     window.close()
 
